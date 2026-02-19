@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Model files
+*.safetensors
+models/
+training/models/
+
+# Dataset
+dataset/
+
+# Local database
+biometric_database.pkl
+webcam/templates/
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
