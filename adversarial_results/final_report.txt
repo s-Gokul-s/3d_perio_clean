@@ -1,0 +1,36 @@
+
+======================================================================
+  ADVERSARIAL ROBUSTNESS COMPARISON REPORT
+  ViT Periocular Biometric System
+  Attack: FGSM | Dataset: 10,199 images / 507 identities
+  Evaluation sample: 100 images, 50 identities
+======================================================================
+
+  CLEAN ACCURACY (no attack):
+    Original model:              95.0%
+    Adversarially trained model: 96.0%
+
+  EMBEDDING STABILITY UNDER FGSM ATTACK
+  (cosine similarity between clean and attacked embedding)
+  Higher = more stable = more robust. Threshold = 0.65
+
+  Epsilon        Original    Adv Trained    Improvement
+  ────────────────────────────────────────────────────
+  0.001            0.9797         0.9977        +0.0180
+  0.005            0.7502         0.9548        +0.2045
+  0.010            0.5338         0.8571        +0.3233
+  0.020            0.3477         0.6605        +0.3128
+  0.040            0.2355         0.4245        +0.1890
+
+  DODGE ATTACK SUCCESS RATE (lower = better defense)
+  (% of genuine users wrongly rejected after FGSM attack)
+
+  Epsilon        Original    Adv Trained      Reduction
+  ────────────────────────────────────────────────────
+  0.001             4.2%           0.0%          +4.2%
+  0.005            74.0%           6.2%         +67.7%
+  0.010            95.8%          36.5%         +59.4%
+  0.020           100.0%          85.4%         +14.6%
+  0.040           100.0%         100.0%          +0.0%
+
+======================================================================

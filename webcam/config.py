@@ -1,6 +1,6 @@
 import torch
 
-MODEL_PATH = "training/models/periocular_vit_best"
+MODEL_PATH = "training/models/adv_model/periocular_vit_adv_best"
 DATABASE_FILE = "biometric_database.pkl"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 

@@ -11,11 +11,21 @@ from enrollment import handle_enrollment
 from preprocessing import enhance_crop
 from liveness import LivenessDetector   # ✅ NEW PASSIVE RGB LIVENESS
 
-
+print("MAIN_ADV STARTED")
 # ==============================
 # INITIALIZATION
 # ==============================
-model = load_model()
+from transformers import ViTForImageClassification
+import torch
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+model = ViTForImageClassification.from_pretrained(
+    "training/models/adv_model/periocular_vit_adv_best"
+).to(device)
+model.eval()
+
+print("Running Adversarial Robust Model")
 transform = get_transform()
 db = load_database()
 
@@ -231,4 +241,3 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
- 
