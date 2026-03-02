@@ -26,6 +26,10 @@ cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
+
+cv2.namedWindow("Biometric Access Control", cv2.WINDOW_NORMAL)
+cv2.resizeWindow("Biometric Access Control", 640, 480)
+
 # ✅ Initialize passive liveness detector
 liveness_detector = LivenessDetector()
 
@@ -36,6 +40,7 @@ has_specs = False
 samples_captured = 0
 
 score_history = []
+
 
 # ==============================
 # MAIN LOOP
