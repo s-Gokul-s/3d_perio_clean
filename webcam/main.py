@@ -9,38 +9,33 @@ from authentication import authenticate
 from config import *
 from enrollment import handle_enrollment
 from preprocessing import enhance_crop
-from liveness import LivenessDetector   # ✅ NEW PASSIVE RGB LIVENESS
-
+from liveness import LivenessDetector
 
 # ==============================
 # INITIALIZATION
 # ==============================
-model = load_model()
+model     = load_model()
 transform = get_transform()
-db = load_database()
+db        = load_database()
 
 mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(refine_landmarks=True)
+face_mesh    = mp_face_mesh.FaceMesh(refine_landmarks=True)
 
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-
 cv2.namedWindow("Biometric Access Control", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Biometric Access Control", 640, 480)
 
-# ✅ Initialize passive liveness detector
 liveness_detector = LivenessDetector()
 
-mode = "AUTH"
-enroll_step = "IDLE"
-enroll_name = ""
-has_specs = False
+mode             = "AUTH"
+enroll_step      = "IDLE"
+enroll_name      = ""
+has_specs        = False
 samples_captured = 0
-
-score_history = []
-
+score_history    = []
 
 # ==============================
 # MAIN LOOP
@@ -51,37 +46,31 @@ while True:
         break
 
     h, w, _ = frame.shape
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    rgb     = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = face_mesh.process(rgb)
 
-    status_color = (255, 255, 0)
-    display_msg = f"SYSTEM: {mode}"
-    info_msg = "PRESS [E] TO ENROLL"
+    status_color  = (255, 255, 0)
+    display_msg   = f"SYSTEM: {mode}"
+    info_msg      = "PRESS [E] TO ENROLL"
     current_score = 0.0
 
-    # ------------------------------------------------
-    # IF NO FACE → RESET LIVENESS (IMPORTANT)
-    # ------------------------------------------------
     if not results.multi_face_landmarks:
         liveness_detector.reset()
-        display_msg = "NO FACE DETECTED"
+        display_msg  = "NO FACE DETECTED"
         status_color = (0, 0, 255)
 
     else:
         lm = results.multi_face_landmarks[0]
 
-        # -----------------------------
-        # ROI EXTRACTION
-        # -----------------------------
-        p1 = np.array([lm.landmark[468].x * w, lm.landmark[468].y * h])
-        p2 = np.array([lm.landmark[473].x * w, lm.landmark[473].y * h])
+        # ROI extraction
+        p1   = np.array([lm.landmark[468].x * w, lm.landmark[468].y * h])
+        p2   = np.array([lm.landmark[473].x * w, lm.landmark[473].y * h])
         dist = np.linalg.norm(p1 - p2)
-        pad = int(dist * 0.35)
+        pad  = int(dist * 0.35)
 
         eye_idx = [33, 133, 159, 145, 153, 154]
         pts = np.array([
-            (int(lm.landmark[i].x * w),
-             int(lm.landmark[i].y * h))
+            (int(lm.landmark[i].x * w), int(lm.landmark[i].y * h))
             for i in eye_idx
         ])
 
@@ -97,47 +86,40 @@ while True:
             roi_display = enhance_crop(crop)
             cv2.imshow("Periocular ROI", roi_display)
 
-            # =====================================
-            # AUTHENTICATION MODE
-            # =====================================
+            # ── AUTHENTICATION ──────────────────────────────────
             if mode == "AUTH":
 
-                # 1️⃣ Passive Liveness Check
                 live = liveness_detector.check(frame, lm)
 
                 if live is None:
-                    display_msg = "VERIFYING LIVENESS..."
+                    display_msg  = "VERIFYING LIVENESS..."
                     status_color = (0, 255, 255)
 
                 elif live is False:
-                    display_msg = "ACCESS DENIED - SPOOF DETECTED"
+                    display_msg  = "ACCESS DENIED - SPOOF DETECTED"
                     status_color = (0, 0, 255)
                     current_score = 0.0
 
                 else:
-                    # 2️⃣ Identity Verification
+                    # get_signature calls enhance_crop once — correct
                     sig = get_signature(crop, model, transform)
 
                     if db:
                         success, user, current_score = authenticate(
                             sig, db, score_history
                         )
-
                         if success:
-                            display_msg = f"ACCESS GRANTED: {user}"
+                            display_msg  = f"ACCESS GRANTED: {user}"
                             status_color = (0, 255, 0)
-
                         else:
-                            display_msg = "ACCESS DENIED - UNKNOWN USER"
+                            display_msg  = "ACCESS DENIED - UNKNOWN USER"
                             status_color = (0, 0, 255)
 
-            # =====================================
-            # ENROLLMENT MODE
-            # =====================================
+            # ── ENROLLMENT ──────────────────────────────────────
             elif mode == "ENROLL":
 
                 if enroll_step == "WAITING_FOR_SPACE":
-                    info_msg = "LOOK AT CAMERA & PRESS [SPACE] TO START"
+                    info_msg     = "LOOK AT CAMERA & PRESS [SPACE] TO START"
                     status_color = (0, 255, 255)
 
                 elif enroll_step == "CAPTURING":
@@ -151,89 +133,60 @@ while True:
                         samples_captured,
                         has_specs,
                         target,
-                        lambda c: get_signature(c, model, transform)
+                        # KEY FIX: pass already_enhanced flag so enrollment
+                        # variants that are pre-processed don't get
+                        # enhance_crop called a second time inside
+                        # feature_extraction — which caused double processing
+                        # and low similarity scores even in same lighting
+                        lambda c, already_enhanced=False: get_signature(
+                            c, model, transform, already_enhanced
+                        )
                     )
 
                     if finished:
                         save_database(db)
                         liveness_detector.reset()
-                        mode = "AUTH"
+                        mode        = "AUTH"
                         enroll_step = "IDLE"
-                        print(f"User {enroll_name} saved successfully.")
+                        print(f"[OK] {enroll_name} enrolled with "
+                              f"{len(db[enroll_name])} templates.")
 
-        # Draw ROI box
-        cv2.rectangle(
-            frame,
-            (ex - pad, ey - pad),
-            (ex + ew + pad, ey + eh + pad),
-            status_color,
-            2
-        )
+        cv2.rectangle(frame,
+                      (ex - pad, ey - pad),
+                      (ex + ew + pad, ey + eh + pad),
+                      status_color, 2)
 
-    # -----------------------------
-    # UI OVERLAY
-    # -----------------------------
+    # ── UI ───────────────────────────────────────────────────
     cv2.rectangle(frame, (0, 0), (w, 60), (0, 0, 0), -1)
 
-    score_display_color = (0, 255, 0) if current_score > MATCH_THRESHOLD else (0, 0, 255)
-
-    cv2.putText(
-        frame,
-        f"SIMILARITY SCORE: {current_score:.4f}",
-        (w - 400, 40),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        score_display_color,
-        2
-    )
-
-    cv2.putText(
-        frame,
-        display_msg,
-        (20, 40),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.8,
-        status_color,
-        2
-    )
-
-    cv2.putText(
-        frame,
-        info_msg,
-        (20, h - 20),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (255, 255, 255),
-        1
-    )
+    score_color = (0, 255, 0) if current_score > MATCH_THRESHOLD else (0, 0, 255)
+    cv2.putText(frame, f"SIMILARITY SCORE: {current_score:.4f}",
+                (w - 400, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, score_color, 2)
+    cv2.putText(frame, display_msg,
+                (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, status_color, 2)
+    cv2.putText(frame, info_msg,
+                (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
     cv2.imshow("Biometric Access Control", frame)
 
-    # -----------------------------
-    # KEYBOARD CONTROLS
-    # -----------------------------
     key = cv2.waitKey(1) & 0xFF
 
     if key == ord('q'):
         break
 
     elif key == ord('e') and mode == "AUTH":
-        enroll_name = input("Enter User Name: ")
-        specs_input = input("Does this user wear glasses? (y/n): ").lower()
-        has_specs = True if specs_input == 'y' else False
-
-        db[enroll_name] = []
+        enroll_name  = input("Enter User Name: ")
+        specs_input  = input("Does this user wear glasses? (y/n): ").lower()
+        has_specs    = specs_input == 'y'
+        db[enroll_name]  = []
         samples_captured = 0
-
         liveness_detector.reset()
-
-        mode = "ENROLL"
+        mode        = "ENROLL"
         enroll_step = "WAITING_FOR_SPACE"
-        print("Switching to Camera... Click on the Camera window then press SPACE.")
+        print("Click the camera window then press SPACE to start.")
 
     elif key == 32 and enroll_step == "WAITING_FOR_SPACE":
         enroll_step = "CAPTURING"
 
 cap.release()
 cv2.destroyAllWindows()
- 
