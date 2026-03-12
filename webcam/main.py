@@ -262,7 +262,7 @@ while True:
                         db,
                         samples_captured,
                         False,
-                        30,
+                        60,
                         lambda c:get_signature(c,model,transform)
                     )
 
@@ -294,7 +294,7 @@ while True:
                         db,
                         samples_captured,
                         True,
-                        30,
+                        60,
                         lambda c:get_signature(c,model,transform)
                     )
 
