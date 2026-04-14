@@ -54,7 +54,7 @@ def authenticate(sig, db, score_history):
     # ------------------------------------------------
     # Final decision
     # ------------------------------------------------
-    if current_score > MATCH_THRESHOLD and margin > MARGIN_THRESHOLD:
+    if current_score > MATCH_THRESHOLD:
         return True, best_user, current_score
     else:
         return False, "UNKNOWN USER", current_score

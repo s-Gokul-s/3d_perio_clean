@@ -1,0 +1,36 @@
+name: periocular
+
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+
+dependencies:
+  - python=3.10
+  - pip
+
+  # Core ML
+  - pytorch=2.7
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.8
+
+  # Essential libs
+  - numpy
+  - scipy
+  - scikit-learn
+  - pandas
+  - matplotlib
+
+  # Pip-only packages
+  - pip:
+      - opencv-python
+      - mediapipe
+      - pillow
+      - streamlit
+      - streamlit-webrtc
+      - transformers
+      - timm
+      - huggingface-hub
+      - tqdm
+      - plotly
